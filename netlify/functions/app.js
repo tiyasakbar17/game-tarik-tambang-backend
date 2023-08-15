@@ -22,7 +22,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use("/.netlify/functions/app", async (req, res, next) => {
-  if (res.socket.server.io) {
+  if (res.socket?.server?.io) {
     console.log("Socket is already running");
   } else {
     console.log("Socket is initializing");

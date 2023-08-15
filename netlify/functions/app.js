@@ -31,6 +31,10 @@ app.use("/.netlify/functions/app", async (req, res, next) => {
     res.socket.server = server;
     const io = new Server(res.socket.server, {
       path: "/.netlify/functions/app/socketio",
+      cors: {
+        origin: "*",
+        methods: "*",
+      },
     });
     res.socket.server.io = io;
 

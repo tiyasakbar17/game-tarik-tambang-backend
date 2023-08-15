@@ -3,7 +3,9 @@ const express = require("express");
 const serverless = require("serverless-http");
 const cors = require("cors");
 const { Server } = require("socket.io");
+const http = require("http");
 const app = express();
+const server = http.createServer(app);
 
 const chatEvents = {
   register: "game:register",
@@ -26,6 +28,7 @@ app.use("/.netlify/functions/app", async (req, res, next) => {
     console.log("Socket is already running");
   } else {
     console.log("Socket is initializing");
+    res.socket.server = server;
     const io = new Server(res.socket.server);
     res.socket.server.io = io;
 
@@ -42,4 +45,4 @@ app.use("/.netlify/functions/app", async (req, res, next) => {
   res.end();
 });
 
-module.exports.handler = serverless(app);
+module.exports.handler = serverless(server);

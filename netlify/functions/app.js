@@ -29,7 +29,9 @@ app.use("/.netlify/functions/app", async (req, res, next) => {
   } else {
     console.log("Socket is initializing");
     res.socket.server = server;
-    const io = new Server(res.socket.server);
+    const io = new Server(res.socket.server, {
+      path: "/.netlify/functions/app/socketio",
+    });
     res.socket.server.io = io;
 
     io.on("connection", (socket) => {

@@ -1,6 +1,7 @@
 import { Server, Socket } from "socket.io";
 import * as I from "./interface";
 import { generateUUID } from "../../utils/idGenerator";
+import { chatEvents } from "../../constants/socketEvents";
 
 export function socketHandler(io: Server) {
   const data: I.IGameData = {};
@@ -11,30 +12,53 @@ export function socketHandler(io: Server) {
     // User Disconnected
     socket.on("disconnect", () => {
       console.log("Someone Disconnected bre~~~");
-      if (registeredSocketID[socket.id]) {
-        delete registeredSocketID[socket.id];
-        totalOnlinePlayer -= 1;
-        socket.broadcast.emit("info:total_player", totalOnlinePlayer);
+      if (!registeredSocketID[socket.id]) {
+        return;
       }
+      const roomID = registeredSocketID[socket.id];
+      if (typeof roomID !== "boolean") {
+        // Check Person in Room
+        if (data[roomID].player1?.id === socket.id) {
+          data[roomID].player1 = undefined;
+        } else {
+          data[roomID].player2 = undefined;
+        }
+
+        data[roomID].isAvailable = true;
+        // Check if The room is Empty
+        if (!data[roomID].player1 && !data[roomID].player2) {
+          return delete data[roomID];
+        }
+        const payload: I.IRoomInfo = {
+          isReady: false,
+          roomData: data[roomID],
+        };
+        socket.broadcast.to(roomID).emit(chatEvents.roomInfo, payload);
+      }
+
+      // Remove user from data
+      delete registeredSocketID[socket.id];
+      totalOnlinePlayer -= 1;
+      socket.broadcast.emit(chatEvents.infoTotalPlayer, totalOnlinePlayer);
     });
 
     // User Clicked Start Game
-    socket.on("game:register", (callBack: I.RegisterCallback) => {
+    socket.on(chatEvents.register, (callBack: I.RegisterCallback) => {
       console.log("connected bre~~~~", socket.id);
       if (registeredSocketID[socket.id]) {
-        io.emit("info:total_player", totalOnlinePlayer);
+        io.emit(chatEvents.infoTotalPlayer, totalOnlinePlayer);
         callBack(socket.id);
       } else {
         registeredSocketID[socket.id] = true;
         totalOnlinePlayer += 1;
-        io.emit("info:total_player", totalOnlinePlayer);
+        io.emit(chatEvents.infoTotalPlayer, totalOnlinePlayer);
         callBack(socket.id);
       }
     });
 
     // User Create New Room
     socket.on(
-      "game:create_room",
+      chatEvents.createRoom,
       async (props: I.ICreateGameProps, callback: I.CreateGameCallBack) => {
         const { id, name } = props;
         const roomID: string = generateUUID();
@@ -57,50 +81,63 @@ export function socketHandler(io: Server) {
 
     // User Join Room
     socket.on(
-      "game:join_room",
+      chatEvents.joinRoom,
       async (props: I.IJoinGameProps, callback: I.JoinGameCallback) => {
         const { roomID, id, name } = props;
         // Check Room Availibility
         const roomData: I.IRoom | undefined = data[roomID];
         if (roomData === undefined) {
-          return callback(new Error("No Room Found"));
+          return callback("No Room Found");
         }
-        if (roomData.isAvailable) {
-          return callback(new Error("Room is Full"));
+        if (!roomData.isAvailable) {
+          return callback("Room is Full");
         }
 
         // Register user to the room
         data[roomID].isAvailable = false;
-        data[roomID].player2 = {
-          id,
-          name,
-        };
+        if (!data[roomID].player1) {
+          data[roomID].player1 = {
+            id,
+            name,
+          };
+        } else {
+          data[roomID].player2 = {
+            id,
+            name,
+          };
+        }
+        data[roomID].counter = 0;
         registeredSocketID[id] = roomID;
-        await socket.join(roomID);
+        try {
+          await socket.join(roomID);
+        } catch (error) {
+          console.log(error);
+        }
+        callback(null);
         setTimeout(() => {
           const payload: I.IRoomInfo = {
             isReady: true,
             roomData: data[roomID],
           };
-          socket.broadcast.to(roomID).emit("game:room_info", payload);
+          io.to(roomID).emit(chatEvents.roomInfo, payload);
         }, 1000);
       }
     );
 
     // User Play Game
-    socket.on("game:user_click", (props: I.IGameClick) => {
+    socket.on(chatEvents.userClicked, (props: I.IGameClick) => {
       const { id, roomID } = props;
       const currentValue: I.IRoom = data[roomID];
 
       const isPlayer1 = currentValue.player1?.id === id;
 
-      data[roomID].counter = data[roomID].counter + (isPlayer1 ? -1 : 1);
+      data[roomID].counter = data[roomID].counter + (isPlayer1 ? 1 : -1);
       let winner: I.Player;
       switch (data[roomID].counter) {
-        case 20:
+        case -20:
           winner = data[roomID].player2!;
           break;
-        case -20:
+        case 20:
           winner = data[roomID].player1!;
           break;
         default:
@@ -109,20 +146,19 @@ export function socketHandler(io: Server) {
           };
           return socket.broadcast
             .to(roomID)
-            .emit("game:someone_clicked", payload);
+            .emit(chatEvents.emitClick, payload);
       }
-      socket.broadcast.to(roomID).emit("game:clear", winner);
-      delete data[roomID];
+      socket.broadcast.to(roomID).emit(chatEvents.gameClear, winner);
     });
 
     socket.on(
-      "game:leave_room",
+      chatEvents.leaveRoom,
       (props: I.IGameLeave, callback: I.GameLeaveCallback) => {
-        const { roomID } = props;
-        registeredSocketID[socket.id] = true;
+        const { roomID, id } = props;
+        registeredSocketID[id] = true;
 
         // Check Person in Room
-        if (data[roomID].player1?.id === socket.id) {
+        if (data[roomID].player1?.id === id) {
           data[roomID].player1 = undefined;
         } else {
           data[roomID].player2 = undefined;
@@ -140,7 +176,7 @@ export function socketHandler(io: Server) {
           isReady: false,
           roomData: data[roomID],
         };
-        socket.broadcast.to(roomID).emit("game:room_info", payload);
+        socket.broadcast.to(roomID).emit(chatEvents.roomInfo, payload);
         socket.leave(roomID);
         callback(true);
       }

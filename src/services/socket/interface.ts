@@ -24,6 +24,7 @@ export type RegisterCallback = (id: string) => void;
 export interface ICreateGameProps {
   id: string;
   name: string;
+  callback: CreateGameCallBack;
 }
 
 export type CreateGameCallBack = (roomID: string) => void;
@@ -34,7 +35,7 @@ export interface IJoinGameProps {
   name: string;
 }
 
-export type JoinGameCallback = (err: null | Error) => void;
+export type JoinGameCallback = (err: null | string) => void;
 
 export interface IRoomInfo {
   isReady: boolean;
@@ -48,6 +49,7 @@ export interface IGameClick {
 
 export interface IGameLeave {
   roomID: string;
+  id: string;
 }
 
 export type GameLeaveCallback = (isLeaving: boolean) => void;

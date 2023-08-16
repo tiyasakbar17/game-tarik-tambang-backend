@@ -1,0 +1,4 @@
+runtime: nodejs18
+env: standard
+instance_class: N1
+vm: true

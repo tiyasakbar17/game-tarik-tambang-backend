@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "concurrently \"npx tsc --watch\" \"nodemon -q dist/app.js\"",
-    "start": "node ./dist/app.js\""
+    "dev": "concurrently \"npx tsc --watch\" \"PORT=8080 nodemon -q dist/app.js\"",
+    "start": "PORT=8080 node ./dist/app.js"
   },
   "keywords": [],
   "author": "",

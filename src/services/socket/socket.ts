@@ -158,7 +158,7 @@ export function socketHandler(io: Server) {
         registeredSocketID[id] = true;
 
         // Check Person in Room
-        if (data[roomID].player1?.id === id) {
+        if (data[roomID]?.player1?.id === id) {
           data[roomID].player1 = undefined;
         } else {
           data[roomID].player2 = undefined;

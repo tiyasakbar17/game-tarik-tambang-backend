@@ -134,10 +134,10 @@ export function socketHandler(io: Server) {
       data[roomID].counter = data[roomID].counter + (isPlayer1 ? 1 : -1);
       let winner: I.Player;
       switch (data[roomID].counter) {
-        case -20:
+        case -7:
           winner = data[roomID].player2!;
           break;
-        case 20:
+        case 7:
           winner = data[roomID].player1!;
           break;
         default:
